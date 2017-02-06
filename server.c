@@ -124,7 +124,7 @@ static int do_epoll(int listenfd)
 			sockfd = events[i].data.fd;
 			
 			if (sockfd == listenfd) {	/* new connect */
-				do_accept(epollfd, fd, buf);
+				do_accept(epollfd, sockfd, buf);
 			} else if (events[i].events & EPOLLIN) {	/* read event */
 				if (sockfd < 0) continue;
 				if (do_read(epollfd, sockfd, buf) < 0) {
