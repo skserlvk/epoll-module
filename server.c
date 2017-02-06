@@ -60,6 +60,7 @@ static int do_read(int epollfd, int rfd, const char *buf)
 	} else if (nread == 0) {
 		fprintf(stderr, "client already close !\n");
 		set_event(epollfd, rfd, EPOLLIN, EPOLL_CTL_DEL);
+		return -1;
 	} else {
 		printf("receive message: %s\n", buf);
 		set_event(epollfd, rfd, EPOLLOUT, EPOLL_CTL_MOD);
@@ -76,7 +77,7 @@ static int do_write(int epollfd, int wfd, char *buf)
 		perror("write error: ");
 		return -1;
 	} else {
-		if (fd == STDOUT_FILENO)
+		if (wfd == STDOUT_FILENO)
 			set_event(epollfd, wfd, EPOLLOUT, EPOLL_CTL_DEL);
 		else
 			set_event(epollfd, wfd, EPOLLIN, EPOLL_CTL_MOD);
@@ -109,7 +110,7 @@ static int do_epoll(int listenfd)
 	struct epoll_event events[EPOLL_EVENTS];
 	int readyfds;
 	char buf[BUFF_MAX];
-	int i, fd;
+	int i, sockfd;
 
 	epollfd = epoll_create(FD_SIZE);
 
@@ -120,17 +121,21 @@ static int do_epoll(int listenfd)
 		readyfds = epoll_wait(epollfd, events, EPOLL_EVENTS, -1);
 		
 		for (i = 0; i < readyfds; i++) {
-			fd = events[i].data.fd;
-			if (events[i].events & EPOLLIN) {
-				if (fd == listenfd)	/* socket event, have new client request. */
-					do_accept(epollfd, fd, buf);
-				else
-					do_read(epollfd, fd, buf);
-			} else if (events[i].events & EPOLLOUT) {
-				do_write(epollfd, fd, buf);
+			sockfd = events[i].data.fd;
+			
+			if (sockfd == listenfd) {	/* new connect */
+				do_accept(epollfd, fd, buf);
+			} else if (events[i].events & EPOLLIN) {	/* read event */
+				if (sockfd < 0) continue;
+				if (do_read(epollfd, sockfd, buf) < 0) {
+					close(sockfd);
+					events[i].data.fd = -1;
+				}
+			} else if (events[i].events & EPOLLOUT) {	/* write event */
+				do_write(epollfd, sockfd, buf);
+			} else {
+				/* other event */
 			}
-
-			close(fd);
 		}
 	}
 
