@@ -26,7 +26,7 @@ static int sock_init(const char *ip, int port)
 
 	memset(&svraddr, 0, sizeof(svraddr));
 	svraddr.sin_family = AF_INET;
-	inet_pton(AF_INET, ip, svraddr.sin_addr);
+	inet_pton(AF_INET, ip, &svraddr.sin_addr);
 	svraddr.sin_port = port;
 
 	ret = bind(listenfd, (struct sockaddr *)&svraddr, sizeof(struct sockaddr));
