@@ -103,33 +103,13 @@ static int do_accept(int epollfd, int listenfd)
 	return 0;
 }
 
-
-static int handle_events(int epollfd, struct epoll_event *events, int readyfds, int listenfd, char *buf)
-{
-	int i, fd;
-	for (i = 0; i < readyfds; i++) {
-		fd = events[i].data.fd;
-		if (events[i].events & EPOLLIN) {
-			if (fd == listenfd)	/* socket event, have new client request. */
-				do_accept(epollfd, fd, buf);
-			else
-				do_read(epollfd, fd, buf);
-		} else if (events[i].events & EPOLLOUT) {
-			do_write(epollfd, fd, buf);
-		}
-
-		close(fd);
-	}
-
-	return 0;
-}
-
 static int do_epoll(int listenfd)
 {
 	int epollfd;
 	struct epoll_event events[EPOLL_EVENTS];
 	int readyfds;
 	char buf[BUFF_MAX];
+	int i, fd;
 
 	epollfd = epoll_create(FD_SIZE);
 
@@ -138,7 +118,20 @@ static int do_epoll(int listenfd)
 	while(1) {
 		/* get ready events num */
 		readyfds = epoll_wait(epollfd, events, EPOLL_EVENTS, -1);
-		handle_events();
+		
+		for (i = 0; i < readyfds; i++) {
+			fd = events[i].data.fd;
+			if (events[i].events & EPOLLIN) {
+				if (fd == listenfd)	/* socket event, have new client request. */
+					do_accept(epollfd, fd, buf);
+				else
+					do_read(epollfd, fd, buf);
+			} else if (events[i].events & EPOLLOUT) {
+				do_write(epollfd, fd, buf);
+			}
+
+			close(fd);
+		}
 	}
 
 	close(epollfd);
